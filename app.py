@@ -1,10 +1,21 @@
 import streamlit as st
 import joblib
+import re
 
 # -------------------------
-# Load the trained model
+# Load trained components
 # -------------------------
-model = joblib.load("bow_logreg_model.pkl")
+model = joblib.load("suicide_model.pkl")
+vectorizer = joblib.load("vectorizer.pkl")
+
+# -------------------------
+# Text Cleaning (same as training)
+# -------------------------
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r"http\S+", "", text)
+    text = re.sub(r"[^a-zA-Z\s]", "", text)
+    return text
 
 # -------------------------
 # Streamlit UI
@@ -15,10 +26,9 @@ st.set_page_config(
     layout="centered"
 )
 
-# THE NEW THING (calm down, it's just a toggle)
 dark_mode = st.toggle("Dark mode")
 
-# Simple Enhanced CSS (base light theme)
+# Base CSS
 st.markdown(
     """
     <style>
@@ -31,52 +41,57 @@ st.markdown(
         margin-bottom: 1.5rem;
     }
     .header-title {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg,#667eea,#764ba2);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-size: 2.5rem;
         font-weight: bold;
         text-align: center;
-        margin-bottom: 0.5rem;
     }
-    .header-subtitle { color: #666; font-size: 1.1rem; text-align: center; }
-    .stButton button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 0.75rem 2rem;
-        border-radius: 25px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        width: 100%;
-        margin-top: 1rem;
+    .header-subtitle {
+        color:#666;
+        text-align:center;
     }
-    .stButton button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    .stButton button{
+        background:linear-gradient(135deg,#667eea,#764ba2);
+        color:white;
+        border:none;
+        padding:0.75rem 2rem;
+        border-radius:25px;
+        font-size:1.1rem;
+        font-weight:600;
+        width:100%;
+        margin-top:1rem;
     }
-    .result-emoji { font-size: 3.5rem; text-align: center; margin-bottom: 1rem; }
-    .result-message { font-size: 1.4rem; font-weight: bold; text-align: center; margin-bottom: 1rem; }
-    .result-probability { font-size: 2rem; font-weight: bold; text-align: center; margin-bottom: 1rem; }
-    .footer-text { color: #666; text-align: center; font-size: 0.95rem; }
+    .result-emoji{
+        font-size:3.5rem;
+        text-align:center;
+    }
+    .result-message{
+        font-size:1.4rem;
+        font-weight:bold;
+        text-align:center;
+    }
+    .result-probability{
+        font-size:2rem;
+        font-weight:bold;
+        text-align:center;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# DARK THEME OVERRIDE (only applied when toggle is ON)
+# Dark mode CSS
 if dark_mode:
     st.markdown(
         """
         <style>
-        .stApp { background: #0f172a; }
-        .header-card, .input-card, .result-card, .footer-card {
-            background: #111827;
-            color: #e5e7eb;
-            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.05);
+        .stApp { background:#0f172a; }
+        .header-card,.input-card,.result-card,.footer-card{
+            background:#111827;
+            color:#e5e7eb;
         }
-        label, .footer-text { color: #e5e7eb !important; }
-        .header-subtitle { color: #9ca3af !important; }
         </style>
         """,
         unsafe_allow_html=True
@@ -84,65 +99,82 @@ if dark_mode:
 
 # Header
 st.markdown(
-    """
-    <div class="header-card">
-        <div class="header-title">🧠 Suicide Tweet Predictor</div>
-        <div class="header-subtitle">Enter a tweet below and the model will predict if it's a potential suicidal post.</div>
-    </div>
-    """,
-    unsafe_allow_html=True
+"""
+<div class="header-card">
+<div class="header-title">🧠 Suicide Tweet Predictor</div>
+<div class="header-subtitle">
+Enter a tweet and the model estimates suicide risk.
+</div>
+</div>
+""",
+unsafe_allow_html=True
 )
 
-# Input area
-tweet = st.text_area("Enter Tweet:", height=150)
+# Input
+tweet = st.text_area("Enter Tweet", height=150)
 
-# Predict button
+# Prediction
 if st.button("Predict"):
-    if tweet.strip() == "":
-        st.warning("⚠️ Please enter some text to predict.")
+
+    if tweet.strip()=="":
+        st.warning("Please enter text.")
+
     else:
         try:
-            prob = model.predict_proba([tweet])[0][1]
-            pred = 1 if prob >= 0.5 else 0
-            prob_pct = round(prob * 100, 2)
+
+            # CLEAN
+            tweet_clean = clean_text(tweet)
+
+            # VECTORIZATION
+            tweet_vec = vectorizer.transform([tweet_clean])
+
+            # MODEL PREDICTION
+            prob = model.predict_proba(tweet_vec)[0][1]
+
+            prob_pct = round(prob*100,2)
 
             if prob_pct < 30:
-                color = "#4CAF50"
-                emoji = "✅"
-                msg = "Not a Suicide Post"
+                color="#4CAF50"
+                emoji="✅"
+                msg="Low Suicide Risk"
+
             elif prob_pct < 70:
-                color = "#FFC107"
-                emoji = "⚠️"
-                msg = "Moderate Risk – Monitor"
+                color="#FFC107"
+                emoji="⚠️"
+                msg="Moderate Risk – Monitor"
+
             else:
-                color = "#FF4C4C"
-                emoji = "🚨"
-                msg = "Potential Suicide Post Detected!"
+                color="#FF4C4C"
+                emoji="🚨"
+                msg="Potential Suicide Risk Detected"
 
             st.markdown(
-                f"""
-                <div class="result-card" style="border-left: 6px solid {color};">
-                    <div class="result-emoji">{emoji}</div>
-                    <div class="result-message" style="color: {color};">{msg}</div>
-                    <div class="result-probability" style="color: {color};">Probability: {prob_pct}%</div>
-                </div>
-                """,
-                unsafe_allow_html=True
+            f"""
+            <div class="result-card" style="border-left:6px solid {color};">
+            <div class="result-emoji">{emoji}</div>
+            <div class="result-message" style="color:{color};">{msg}</div>
+            <div class="result-probability" style="color:{color};">
+            Probability: {prob_pct}%
+            </div>
+            </div>
+            """,
+            unsafe_allow_html=True
             )
 
             st.progress(int(prob_pct))
 
         except Exception as e:
-            st.error(f"Error during prediction: {e}")
+            st.error(f"Prediction error: {e}")
 
 st.markdown("---")
+
 st.markdown(
-    """
-    <div class="footer-card">
-        <div class="footer-text">
-            Developed with ❤️ by <strong>InsightMonk</strong> | For educational purposes only.
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
+"""
+<div class="footer-card">
+<div class="footer-text">
+Developed by <strong>InsightMonk</strong> | Educational use only
+</div>
+</div>
+""",
+unsafe_allow_html=True
 )
