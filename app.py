@@ -26,7 +26,7 @@ st.set_page_config(
     layout="centered"
 )
 
-dark_mode = st.toggle("Dark mode")
+dark_mode = st.toggle("Dark mode",value = True)
 
 # Base CSS
 st.markdown(
