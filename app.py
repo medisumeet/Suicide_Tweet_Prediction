@@ -22,7 +22,6 @@ def clean_text(text):
 # -------------------------
 st.set_page_config(
     page_title="Suicide Tweet Predictor",
-    page_icon="🧠",
     layout="centered"
 )
 
