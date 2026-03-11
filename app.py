@@ -22,10 +22,11 @@ def clean_text(text):
 # -------------------------
 st.set_page_config(
     page_title="Suicide Tweet Predictor",
+    page_icon="🧠",
     layout="centered"
 )
 
-dark_mode = st.toggle("Dark mode",value = True)
+dark_mode = st.toggle("Dark mode",value = False)
 
 # Base CSS
 st.markdown(
